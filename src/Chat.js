@@ -4,21 +4,32 @@ import InsertEmoticonIcon from "@material-ui/icons/InsertEmoticon";
 import MicIcon from "@material-ui/icons/Mic";
 import React, { useEffect, useState } from "react";
 import "./Chat.css";
-import axios from "./axios";
 import { useParams } from "react-router-dom";
 import db from "./firebase";
+import firebase from "firebase";
+import { useStateValue } from "./StateProvider";
 
-function Chat({ messages }) {
+function Chat() {
   const [seed, setSeed] = useState("");
   const [input, setInput] = useState("");
   const { roomId } = useParams();
   const [roomName, setRoomName] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [{ user }, dispatch] = useStateValue();
 
   useEffect(() => {
     if (roomId) {
       db.collection("rooms")
         .doc(roomId)
         .onSnapshot((snapshot) => setRoomName(snapshot.data().name));
+
+      db.collection("rooms")
+        .doc(roomId)
+        .collection("messages")
+        .orderBy("timestamp", "asc")
+        .onSnapshot((snapshot) =>
+          setMessages(snapshot.docs.map((doc) => doc.data()))
+        );
     }
     return () => {};
   }, [roomId]);
@@ -30,11 +41,11 @@ function Chat({ messages }) {
   const sendMessage = async (e) => {
     e.preventDefault();
 
-    await axios.post("/api/v1/messages/new", {
+    db.collection("rooms").doc(roomId).collection("messages").add({
       message: input,
-      name: "Demo App",
-      timestamp: "Just now!",
-      received: false,
+      uid: user.uid,
+      name: user.displayName,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
     setInput("");
@@ -47,7 +58,14 @@ function Chat({ messages }) {
 
         <div className="chat__headerInfo">
           <h3>{roomName}</h3>
-          <p>Last seen at...</p>
+          <p>
+            {messages.length > 0
+              ? `Last seen
+            ${new Date(
+              messages[messages.length - 1]?.timestamp?.toDate()
+            ).toUTCString()}`
+              : "Start a new chat!"}
+          </p>
         </div>
 
         <div className="chat__headerRight">
@@ -68,11 +86,15 @@ function Chat({ messages }) {
       <div className="chat__body">
         {messages?.map((message) => (
           <p
-            className={`chat__message ${message?.received && "chat__receiver"}`}
+            className={`chat__message ${
+              message.uid === user.uid && "chat__receiver"
+            }`}
           >
             <span className="chat__name">{message?.name}</span>
             {message?.message}
-            <span className="chat__timestamp">{message?.timestamp}</span>
+            <span className="chat__timestamp">
+              {new Date(message.timestamp?.toDate()).toUTCString()}
+            </span>
           </p>
         ))}
       </div>

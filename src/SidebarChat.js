@@ -3,9 +3,23 @@ import React, { useEffect, useState } from "react";
 import "./SidebarChat.css";
 import db from "./firebase";
 import { Link } from "react-router-dom";
+import TextTruncate from "react-text-truncate";
 
 function SidebarChat({ id, name, addNewChat }) {
   const [seed, setSeed] = useState("");
+  const [messages, setMessages] = useState("");
+
+  useEffect(() => {
+    if (id) {
+      db.collection("rooms")
+        .doc(id)
+        .collection("messages")
+        .orderBy("timestamp", "desc")
+        .onSnapshot((snapshot) =>
+          setMessages(snapshot.docs.map((doc) => doc.data()))
+        );
+    }
+  }, [id]);
 
   useEffect(() => {
     setSeed(Math.floor(Math.random() * 5000));
@@ -29,7 +43,13 @@ function SidebarChat({ id, name, addNewChat }) {
         <div className="sidebarChat__info">
           <h2>{name}</h2>
 
-          <p>This is the last message</p>
+          <TextTruncate
+            line={2}
+            element="p"
+            truncateText="…"
+            text={`${messages[0]?.name}: ${messages[0]?.message}`}
+            // textTruncateChild={<a href="#">Read on</a>}
+          />
         </div>
       </div>
     </Link>
