@@ -5,15 +5,27 @@ import MicIcon from "@material-ui/icons/Mic";
 import React, { useEffect, useState } from "react";
 import "./Chat.css";
 import axios from "./axios";
+import { useParams } from "react-router-dom";
+import db from "./firebase";
 
 function Chat({ messages }) {
   const [seed, setSeed] = useState("");
+  const [input, setInput] = useState("");
+  const { roomId } = useParams();
+  const [roomName, setRoomName] = useState("");
+
+  useEffect(() => {
+    if (roomId) {
+      db.collection("rooms")
+        .doc(roomId)
+        .onSnapshot((snapshot) => setRoomName(snapshot.data().name));
+    }
+    return () => {};
+  }, [roomId]);
 
   useEffect(() => {
     setSeed(Math.floor(Math.random() * 5000));
-  }, []);
-
-  const [input, setInput] = useState("");
+  }, [roomId]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -34,7 +46,7 @@ function Chat({ messages }) {
         <Avatar src={`https://avatars.dicebear.com/api/human/${seed}.svg`} />
 
         <div className="chat__headerInfo">
-          <h3>Room name</h3>
+          <h3>{roomName}</h3>
           <p>Last seen at...</p>
         </div>
 
@@ -54,7 +66,7 @@ function Chat({ messages }) {
       </div>
 
       <div className="chat__body">
-        {messages.map((message) => (
+        {messages?.map((message) => (
           <p
             className={`chat__message ${message?.received && "chat__receiver"}`}
           >
